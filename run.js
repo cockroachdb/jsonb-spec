@@ -8,9 +8,9 @@ const dbName = 'runnerdb';
 async function run(fnames) {
     for (let fname of fnames) {
         let db = pg({
-        host: 'localhost',
-        port: '5432',
-        database: 'justin'
+            host: 'localhost',
+            port: '5432',
+            database: 'justin'
         });
 
         await db.none(`DROP DATABASE IF EXISTS ${dbName}`);
