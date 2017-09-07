@@ -1,0 +1,16 @@
+{
+  "name": "jsonb",
+  "version": "1.0.0",
+  "description": "",
+  "main": "run.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^2.1.0",
+    "deep-equal": "^1.0.1",
+    "pg-promise": "^6.5.1"
+  }
+}
