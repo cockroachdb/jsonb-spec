@@ -1,20 +1,5 @@
 # JSON Accessor Operators
 
-    Creating a table with a JSONB column:
-    statement notest
-    CREATE TABLE t (
-      id INT PRIMARY KEY,
-      data JSONB
-    )
-
-    Inserting JSONB documents:
-    statement notest
-    INSERT INTO t VALUES
-      (0, '{"foo": 1,  "bar": 2}'),
-      (1, '{"foo": 2,  "bar": "x", "baz": "hello"}'),
-      (2, '{"foo": -1, "goo": "hi"}'),
-      (3, '{"foo": -2, "bup": [1,2,3]}')
-
 Postgres's JSONB support provides various operators for accessing fields within JSON documents.
 
 ## The `->` and `->>` operators
@@ -50,6 +35,12 @@ We can access a specific field in a document using the `->` operator:
     SELECT '{"foo":{"bar":"baz"}}'::JSON->'foo'->'bar'
     ----
     "baz"
+
+    `->` cannot be used with a string to access an array index:
+    query T
+    SELECT '[1, 2, 3]'::JSON->'0'
+    ----
+    null
 
     `->` returns the given field as a JSON value:
     query T

@@ -39,6 +39,27 @@ let Failure = e => ({
     catch(f) { return f(e); }
 });
 
+async function executeTest(db, test) {
+    let q = new pg.ParameterizedQuery(test.query);
+    // By default values arrive as objects and we can't recover the ordering of the result columns.
+    q.rowMode = 'array';
+    switch (test.command) {
+    case 'query':
+        let result = await db.many(q);
+        return Success()
+            .andThen(() => checkTypeString(result, test.args[0]))
+            .andThen(() => checkValues(result, test.expectedResults));
+    case 'statement':
+        try {
+            await db.none(q);
+            return Success();
+        } catch (e) {
+            return Failure(e.message);
+        }
+    }
+    return Failure(`unknown command ${test.command}`)
+}
+
 async function runCommands(db, cs, depth=0) {
     let spacing = '  '.repeat(depth);
     for (let c of cs) {
@@ -47,32 +68,7 @@ async function runCommands(db, cs, depth=0) {
             await runCommands(db, c.subtests, depth + 1);
         } else {
             let test = c.test;
-            let q = new pg.ParameterizedQuery(test.query);
-            // By default values arrive as objects and we can't recover the ordering of the result columns.
-            q.rowMode = 'array';
-            let success;
-            switch (test.command) {
-            case 'query':
-                let result = await db.many(q);
-                success = Success()
-                    .andThen(() => checkTypeString(result, test.args[0]))
-                    .andThen(() => checkValues(result, test.expectedResults));
-            break;
-            case 'statement':
-                try {
-                    await db.none(q);
-                    success = Success();
-                } catch (e) {
-                    success = Failure(e.message);
-                }
-                if (test.args[0] === 'notest') {
-                    continue;
-                }
-            break;
-            default:
-                success = Failure(`unknown command ${test.command}`)
-            }
-            success.andThen(() => {
+            (await executeTest(db, test)).andThen(() => {
                 console.log(chalk.green(` ${spacing}✔  ${test.name}`))
                 return Success();
             }).catch(e => {
@@ -150,8 +146,8 @@ function *parseLines(lines, depth) {
         while (line !== undefined && !line.match(/^ /)) {
             if (line.match(/^#+/)) {
                 let newDepth = line.match(/^(#+)/)[1].length;
-                // shove er back in there
                 if (depth >= newDepth) {
+                    // shove er back in there
                     lines.unshift(line);
                     return;
                 } else {
@@ -185,4 +181,4 @@ function *commands(contents) {
     yield *parseLines(lines, 0);
 }
 
-run(process.argv.slice(2));
+run(process.argv.slice(2))
