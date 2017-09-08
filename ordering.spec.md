@@ -113,4 +113,5 @@ In particular, the orderings across types is especially arbitrary.
     ----
     true
 
-This requires more extensive tests!
+    Strings handle encoding properly:
+    todo

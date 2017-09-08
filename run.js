@@ -5,7 +5,13 @@ var fs = require('fs');
 
 const dbName = 'runnerdb';
 
+run(process.argv.slice(2))
+
 async function run(fnames) {
+    let results = {
+        numTests: 0,
+        numPasses: 0
+    }
     for (let fname of fnames) {
         let db = pg({
             host: 'localhost',
@@ -25,9 +31,19 @@ async function run(fnames) {
 
         let contents = fs.readFileSync(fname).toString();
 
-        await runCommands(db, commands(contents));
+        let result = await runCommands(db, commands(contents));
+        results.numTests += result.numTests;
+        results.numPasses += result.numPasses;
         pg.end();
     }
+
+    console.log();
+    if (results.numPasses === results.numTests) {
+        console.log(chalk.bold.gray(`🍕  ${results.numPasses}/${results.numTests} tests passed 🍕  nice!`));
+    } else {
+        console.log(chalk.bold.red(`${results.numPasses}/${results.numTests} tests passed`));
+    }
+    console.log();
 }
 
 let Success = x => ({
@@ -48,28 +64,57 @@ async function executeTest(db, test) {
         let result = await db.many(q);
         return Success()
             .andThen(() => checkTypeString(result, test.args[0]))
-            .andThen(() => checkValues(result, test.expectedResults));
+            .andThen(() => checkValues(result, test.expectedResults))
+            .andThen(() => Success({type: 'pass'}));
     case 'statement':
-        try {
-            await db.none(q);
-            return Success();
-        } catch (e) {
-            return Failure(e.message);
+        if (test.args[0] === 'ok') {
+            try {
+                await db.none(q);
+                return Success({type: 'pass'});
+            } catch (e) {
+                return Failure(e.message);
+            }
+        } else if (test.args[0] === 'error') {
+            try {
+                await db.none(q);
+                return Failure();
+            } catch (e) {
+                let expectedMessage = test.args.slice(1).join(' ');
+                let actualMessage = e.message.split(/\s+/).join(' ');
+                if (actualMessage === expectedMessage) {
+                    return Success({type: 'pass'});
+                } else {
+                    return Failure(`expected error message to be '${expectedMessage}', but was '${actualMessage}'`);
+                }
+            }
         }
+    case 'todo':
+        return Success({type: 'todo', message: `TODO: ${test.name}`});
     }
     return Failure(`unknown command ${test.command}`)
 }
 
 async function runCommands(db, cs, depth=0) {
     let spacing = '  '.repeat(depth);
+    let numTests = 0;
+    let numPasses = 0;
     for (let c of cs) {
         if (c.type === 'subsection') {
-            console.log(chalk.cyan.italic(`${spacing} # ${c.header}`))
-            await runCommands(db, c.subtests, depth + 1);
+            console.log(chalk.gray.italic(`${spacing} # ${c.header}`))
+            let results = await runCommands(db, c.subtests, depth + 1);
+            numTests += results.numTests;
+            numPasses += results.numPasses;
         } else {
+            numTests++;
             let test = c.test;
-            (await executeTest(db, test)).andThen(() => {
-                console.log(chalk.green(` ${spacing}✔  ${test.name}`))
+            (await executeTest(db, test)).andThen(({type}) => {
+                if (type === 'pass') {
+                    console.log(chalk.green(` ${spacing}✔ `) + chalk.dim.cyan(` ${test.name}`));
+                    numPasses++;
+                } else if (type === 'todo') {
+                    console.log(` ${spacing}🤔  ` + chalk.bold.yellow(`TODO: ${test.name}`));
+                    numTests--;
+                }
                 return Success();
             }).catch(e => {
                 console.log(chalk.red(` ${spacing}✗  ${test.name}`))
@@ -77,6 +122,7 @@ async function runCommands(db, cs, depth=0) {
             });
         }
     }
+    return { numTests, numPasses };
 }
 
 function checkTypeString(result, typeString) {
@@ -141,9 +187,9 @@ function parseQuery(lines) {
 function *parseLines(lines, depth) {
     let i = 0;
     let currentQuery = [];
+    let line = lines.shift();
     while (lines.length > 0) {
-        let line = lines.shift();
-        while (line !== undefined && !line.match(/^ /)) {
+        while (line !== undefined && !line.match(/^\s+\S/)) {
             if (line.match(/^#+/)) {
                 let newDepth = line.match(/^(#+)/)[1].length;
                 if (depth >= newDepth) {
@@ -160,7 +206,7 @@ function *parseLines(lines, depth) {
             }
             line = lines.shift();
         }
-        while (line !== undefined && line.match(/^ /)) {
+        while (line !== undefined && line.match(/^\s+\S/)) {
             if (!line.match(/^\s+$/)) {
                 currentQuery.push(line.replace(/^\s+/, ''));
             }
@@ -180,5 +226,3 @@ function *commands(contents) {
     let lines = contents.split('\n');
     yield *parseLines(lines, 0);
 }
-
-run(process.argv.slice(2))
