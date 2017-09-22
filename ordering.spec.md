@@ -112,6 +112,3 @@ In particular, the orderings across types is especially arbitrary.
     SELECT '"abc"'::JSONB < '"x"'::JSONB
     ----
     true
-
-    Strings handle encoding properly:
-    todo

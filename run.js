@@ -158,7 +158,7 @@ ${formatResult(result)}
         for (let c = 0; c < cols.length; c++) {
             let expectedJson = JSON.parse(cols[c]);
             if (!deepEqual(result[i][c], expectedJson)) {
-                return Failure(`!deepEqual(${result[i][c]}, ${expectedJson})`);
+                return Failure(`!deepEqual(${JSON.stringify(result[i][c])}, ${JSON.stringify(expectedJson)})`);
             }
         }
     }
