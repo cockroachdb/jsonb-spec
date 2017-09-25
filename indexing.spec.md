@@ -24,7 +24,7 @@ column.
 
 ### Computed index on a specified field
 
-This is not specfic to JSONB columns, but is an special case of Postgres's
+This is not specific to JSONB columns, but is a special case of Postgres's
 existing support for computed indexes:
 
     Adding a computed index to a JSONB field:
@@ -38,8 +38,8 @@ on).
 This is the easiest form of index to support today in Cockroach, however, it is
 also one of the least useful in terms of bringing new functionality to the
 table with JSON documents.
-Consider Heroic's use case.
-They effectively have a single column containing JSON documents of various
+Consider this use case:
+A user effectively has a single column containing JSON documents of various
 different shapes, which they do not have much control over (their users can
 store whatever they want as JSON documents).
 This means that in a given table, half of their documents might represent one
